@@ -1,19 +1,8 @@
-import { useState } from 'react'
+import { RouterProvider } from 'react-router-dom'
+import { AppRouter } from './routes/AppRouter'
 
 function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <div>
-      <h1>Protocolo Emocional</h1>
-      <button
-        type="button"
-        onClick={() => setCount((count) => count + 1)}
-      >
-        Contador: {count}
-      </button>
-    </div>
-  )
+  return <RouterProvider router={AppRouter} />
 }
 
 export default App

@@ -1,1 +1,47 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .mesh {
+    position: absolute;
+    filter: blur(80px);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .phone {
+    width: 100%;
+    max-width: 390px;
+    height: 100vh;
+    min-height: 100vh;
+    margin: 0 auto;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 8px 24px -8px rgba(139, 92, 246, 0.35);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+    opacity: 0.95;
+  }
+  .proto-card {
+    transition: all 0.2s ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  .proto-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px rgba(139, 92, 246, 0.15);
+    background-color: #f5f3ff; /* brand-50 */
+    border-color: #ede9fe; /* brand-100 */
+  }
+  .screen {
+    display: none;
+  }
+  .screen.active {
+    display: block;
+  }
+}
