@@ -1,6 +1,5 @@
-import { createBrowserRouter, type RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom';
 import { Home } from '../pages/Home';
-import { ProtocolSelector } from '../pages/ProtocolSelector';
 import { ProtocolDetail } from '../pages/ProtocolDetail';
 import { StartProtocol } from '../pages/StartProtocol';
 import { Notifications } from '../pages/Notifications';
@@ -12,11 +11,11 @@ export const routes: RouteObject[] = [
     element: <AppLayout />,
     children: [
       { path: '/', element: <Home /> },
-      { path: '/protocolos', element: <ProtocolSelector /> },
       { path: '/protocolos/:id', element: <ProtocolDetail /> },
       { path: '/iniciar', element: <StartProtocol /> },
       { path: '/notificaciones', element: <Notifications /> },
       { path: '/ajustes', element: <Settings /> },
+      { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
 ];

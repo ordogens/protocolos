@@ -14,8 +14,8 @@ export function ProtocolDetail() {
     return (
       <div className="p-4 text-center">
         <h1 className="text-xl font-bold text-slate-900">Protocolo no encontrado</h1>
-        <Link to="/protocolos" className="mt-4 inline-block text-xs font-semibold uppercase tracking-wider text-slate-400 underline underline-offset-4 hover:text-brand-600">
-          Volver a la selección
+        <Link to="/" className="mt-4 inline-block text-xs font-semibold uppercase tracking-wider text-slate-400 underline underline-offset-4 hover:text-brand-600">
+          Volver al inicio
         </Link>
       </div>
     );
@@ -23,7 +23,7 @@ export function ProtocolDetail() {
 
   return (
     <div className="page-stack protocol-detail-page">
-      <Link to="/protocolos" className="back-link">← Volver a protocolos</Link>
+      <Link to="/" className="back-link">← Volver al inicio</Link>
       <ProtocolDetailView
         protocol={protocol}
         selectedActivity={selectedActivity}

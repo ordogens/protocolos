@@ -17,7 +17,7 @@ export function Notifications() {
       {notifications.length === 0 ? (
         <div className="py-12 text-center">
           <p className="text-slate-500">Aún no hay actividades registradas.</p>
-          <Link to="/protocolos" className="mt-3 inline-block font-semibold text-brand-600">Elegir un protocolo</Link>
+          <Link to="/" className="mt-3 inline-block font-semibold text-brand-600">Ir al inicio a elegir un plan</Link>
         </div>
       ) : (
         <div className="space-y-3">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useNotification } from '../hooks/useNotification';
 import { FriendSelector } from '../components/notification/FriendSelector';
@@ -14,6 +14,19 @@ const channels: { value: NotificationChannel; label: string }[] = [
   { value: 'email', label: 'Email' },
 ];
 
+const getLocalDateValue = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const timeOptions = Array.from({ length: 48 }, (_, index) => {
+  const minutes = index * 30;
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const labelDate = new Date(2000, 0, 1, hour, minute);
+  const label = new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' }).format(labelDate);
+  return { value, label };
+});
+
 interface StartLocationState {
   protocolId?: ProtocolId;
   activityId?: string;
@@ -26,23 +39,42 @@ export function StartProtocol() {
   const state = (location.state ?? {}) as StartLocationState;
   const protocol = protocols.find((item) => item.id === state.protocolId);
   const activity = protocol?.activities.find((item) => item.id === state.activityId);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minimumScheduleDate = getLocalDateValue(tomorrow);
+  const initialScheduleDate = state.scheduledDate && state.scheduledDate >= minimumScheduleDate
+    ? state.scheduledDate
+    : '';
   const { send } = useNotification();
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const savedFriend = useNotificationStore((store) => store.friend);
   const setFriend = useNotificationStore((store) => store.setFriend);
   const [recipient, setRecipient] = useState(savedFriend);
-  const [scheduledDate, setScheduledDate] = useState(state.scheduledDate ?? '');
-  const [scheduledTime, setScheduledTime] = useState(state.scheduledTime ?? '');
+  const [scheduledDate, setScheduledDate] = useState(initialScheduleDate);
+  const [scheduledTime, setScheduledTime] = useState(initialScheduleDate ? state.scheduledTime ?? '' : '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const isScheduled = Boolean(scheduledDate || scheduledTime);
+
+  const openCalendar = () => {
+    const input = dateInputRef.current;
+    if (!input) return;
+    try {
+      if (typeof input.showPicker === 'function') input.showPicker();
+      else input.click();
+    } catch {
+      input.click();
+      input.focus();
+    }
+  };
 
   if (!protocol || !activity) {
     return (
       <div className="p-6 text-center">
         <h1 className="text-xl font-bold text-slate-900">Selecciona un protocolo y una actividad</h1>
         <p className="mt-2 text-sm text-slate-500">Elige primero qué quieres hacer.</p>
-        <Link to="/protocolos" className="mt-4 inline-block rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white">Ver protocolos</Link>
+        <Link to="/" className="mt-4 inline-block rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white">Volver al inicio y elegir un plan</Link>
       </div>
     );
   }
@@ -55,15 +87,19 @@ export function StartProtocol() {
       return;
     }
     if (Boolean(scheduledDate) !== Boolean(scheduledTime)) {
-      setError('Indica tanto la fecha como la hora para programar.');
+      setError('Selecciona una fecha desde mañana y una hora para programar.');
       return;
     }
 
     let scheduledAt: string | undefined;
     if (scheduledDate && scheduledTime) {
+      if (scheduledDate < minimumScheduleDate) {
+        setError('La programación debe comenzar mañana o en una fecha posterior.');
+        return;
+      }
       const date = new Date(`${scheduledDate}T${scheduledTime}`);
       if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
-        setError('Elige una fecha y hora futuras.');
+        setError('Elige una fecha y hora futuras, desde mañana.');
         return;
       }
       scheduledAt = date.toISOString();
@@ -124,7 +160,7 @@ export function StartProtocol() {
         <span><strong>{protocol.name}</strong><small>{activity.title}</small></span>
       </section>
 
-      <form onSubmit={handleStart} className="invite-form">
+      <form noValidate onSubmit={handleStart} className="invite-form">
         <section className="invite-recipient-card">
           <FriendSelector
             friend={recipient}
@@ -143,15 +179,40 @@ export function StartProtocol() {
 
         <fieldset className="invite-schedule">
           <legend>¿Cuándo?</legend>
-          <label>
+          <label className="schedule-date-field">
             Fecha
-            <input type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} />
+            <span className="schedule-date-control">
+              <input
+                ref={dateInputRef}
+                id="scheduled-date"
+                type="date"
+                min={minimumScheduleDate}
+                value={scheduledDate}
+                onChange={(event) => { setScheduledDate(event.target.value); setError(''); }}
+              />
+              <button type="button" onClick={openCalendar} aria-label="Abrir calendario" className="calendar-trigger">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg>
+              </button>
+            </span>
           </label>
           <label>
             Hora
-            <input type="time" value={scheduledTime} onChange={(event) => setScheduledTime(event.target.value)} />
+            <select value={scheduledTime} onChange={(event) => { setScheduledTime(event.target.value); setError(''); }}>
+              <option value="">Seleccionar hora</option>
+              {timeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
           </label>
         </fieldset>
+
+        {isScheduled && (
+          <button
+            type="button"
+            className="invite-send-now"
+            onClick={() => { setScheduledDate(''); setScheduledTime(''); setError(''); }}
+          >
+            Quitar programación y enviar ahora
+          </button>
+        )}
 
         {error && <p role="alert" className="invite-error">{error}</p>}
         {isScheduled && <p className="invite-note">La programación queda en memoria durante esta sesión. El envío automático se conectará más adelante.</p>}

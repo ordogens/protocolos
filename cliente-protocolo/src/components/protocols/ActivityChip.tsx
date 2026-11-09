@@ -17,9 +17,11 @@ export function ActivityChip({ activity, selected = false, onSelect, className }
     >
       <span className="activity-row__icon" aria-hidden="true">✦</span>
       <span className="activity-row__copy">
-        <span className="activity-row__title">{activity.title}</span>
-        {activity.description && <span className="activity-row__description">{activity.description}</span>}
-        {activity.duration && <span className="activity-row__duration">{activity.duration}</span>}
+        <span className="activity-row__headline">
+          <span className="activity-row__title">{activity.title}</span>
+          {activity.duration && <span className="activity-row__duration">{activity.duration}</span>}
+        </span>
+        {selected && activity.description && <span className="activity-row__description">{activity.description}</span>}
       </span>
       <span className="activity-row__arrow" aria-hidden="true">›</span>
     </button>
