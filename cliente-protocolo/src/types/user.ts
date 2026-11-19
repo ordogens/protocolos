@@ -2,7 +2,7 @@ import type { NotificationChannel } from './notification';
 
 export interface User {
   id: string;
-  name: string;
+  email: string;
 }
 
 export interface AppPreferences {

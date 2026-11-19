@@ -3,6 +3,7 @@ body { margin: 0; background: #080c15; color: #f8fafc; font-family: Inter, ui-sa
 button, input, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 
+
 .app-shell { min-height: 100dvh; background: radial-gradient(ellipse at top, #111a2b 0%, #080c15 58%); }
 .app-phone { box-sizing: border-box; position: relative; width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; overflow: hidden; color: #f8fafc; background: #080d17; border-inline: 1px solid rgba(129, 140, 248, .12); }
 .app-phone--focused { padding-bottom: env(safe-area-inset-bottom, 0px); }

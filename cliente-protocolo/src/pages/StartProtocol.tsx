@@ -1,18 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useNotification } from '../hooks/useNotification';
-import { FriendSelector } from '../components/notification/FriendSelector';
 import { protocols } from '../data/protocols';
 import { protocolImages } from '../data/protocolImages';
-import { useNotificationStore } from '../stores/notificationStore';
-import type { NotificationChannel, ProtocolId } from '../types';
-
-const channels: { value: NotificationChannel; label: string }[] = [
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'sms', label: 'SMS' },
-  { value: 'email', label: 'Email' },
-];
+import { invitationsService } from '../services/invitationsService';
+import { useContactsStore } from '../stores/contactsStore';
+import type { ProtocolId } from '../types';
 
 const getLocalDateValue = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -45,17 +37,26 @@ export function StartProtocol() {
   const initialScheduleDate = state.scheduledDate && state.scheduledDate >= minimumScheduleDate
     ? state.scheduledDate
     : '';
-  const { send } = useNotification();
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const savedFriend = useNotificationStore((store) => store.friend);
-  const setFriend = useNotificationStore((store) => store.setFriend);
-  const [recipient, setRecipient] = useState(savedFriend);
+  const contacts = useContactsStore((store) => store.contacts);
+  const contactsLoading = useContactsStore((store) => store.loading);
+  const loadContacts = useContactsStore((store) => store.load);
+  const [recipientIds, setRecipientIds] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState(initialScheduleDate);
   const [scheduledTime, setScheduledTime] = useState(initialScheduleDate ? state.scheduledTime ?? '' : '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const isScheduled = Boolean(scheduledDate || scheduledTime);
+
+  useEffect(() => { void loadContacts(); }, [loadContacts]);
+
+  const toggleRecipient = (contactId: string) => {
+    setRecipientIds((current) => current.includes(contactId)
+      ? current.filter((id) => id !== contactId)
+      : [...current, contactId]);
+    setError('');
+  };
 
   const openCalendar = () => {
     const input = dateInputRef.current;
@@ -82,8 +83,8 @@ export function StartProtocol() {
   const handleStart = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
-    if (!recipient?.name.trim() || !recipient.contact.trim()) {
-      setError('Completa el nombre y el contacto de tu amigo.');
+    if (recipientIds.length === 0) {
+      setError('Selecciona al menos un contacto guardado.');
       return;
     }
     if (Boolean(scheduledDate) !== Boolean(scheduledTime)) {
@@ -107,17 +108,13 @@ export function StartProtocol() {
 
     setSending(true);
     try {
-      setFriend({ name: recipient.name.trim(), contact: recipient.contact.trim(), channel: recipient.channel });
-      const result = await send(recipient.channel, {
+      await invitationsService.create({
         protocolId: protocol.id,
-        protocol: protocol.name,
         activityId: activity.id,
-        activity: activity.title,
-        user: 'Usuario',
-        message: `Inició ${protocol.name}: ${activity.title}.`,
-      }, scheduledAt, recipient);
-      if (result.success) setSuccess(true);
-      else setError(result.error ?? 'No se pudo procesar la solicitud.');
+        recipientIds,
+        ...(scheduledAt ? { scheduledAt } : {}),
+      });
+      setSuccess(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo procesar la solicitud.');
     } finally {
@@ -133,8 +130,8 @@ export function StartProtocol() {
         <h1>{isScheduled ? 'Invitación programada' : 'Invitación lista'}</h1>
         <p>
           {isScheduled
-            ? `La invitación quedó programada en esta sesión para ${new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}.`
-            : `La invitación para ${protocol.name} · ${activity.title} se registró en modo de demostración.`}
+            ? `La invitación quedó programada para ${new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()} para ${recipientIds.length} contacto${recipientIds.length === 1 ? '' : 's'}.`
+            : `La invitación para ${protocol.name} · ${activity.title} quedó guardada para ${recipientIds.length} contacto${recipientIds.length === 1 ? '' : 's'}.`}
         </p>
         <div className="invite-plan-card" style={{ backgroundImage: `linear-gradient(90deg, rgba(10, 15, 26, .93), rgba(10, 15, 26, .45)), url("${protocolImages[protocol.id]}")` }}>
           <span className="invite-plan-card__icon">{protocol.icon}</span>
@@ -152,7 +149,7 @@ export function StartProtocol() {
         <Link to={`/protocolos/${protocol.id}`} className="invite-close" aria-label="Volver al protocolo">×</Link>
         <div className="invite-orb" aria-hidden="true">➤</div>
         <h1>¿Mandar invitación?</h1>
-        <p>Invita a tu amigo a sumarse a este plan.</p>
+        <p>Invita a uno o varios contactos a sumarse a este plan.</p>
       </header>
 
       <section className="invite-plan-card" style={{ backgroundImage: `linear-gradient(90deg, rgba(10, 15, 26, .94), rgba(10, 15, 26, .45)), url("${protocolImages[protocol.id]}")` }}>
@@ -162,19 +159,23 @@ export function StartProtocol() {
 
       <form noValidate onSubmit={handleStart} className="invite-form">
         <section className="invite-recipient-card">
-          <FriendSelector
-            friend={recipient}
-            channels={channels}
-            onChange={(changes) => {
-              setRecipient((current) => ({
-                name: current?.name ?? '',
-                contact: current?.contact ?? '',
-                channel: current?.channel ?? 'telegram',
-                ...changes,
-              }));
-              setError('');
-            }}
-          />
+          <div className="friend-selector">
+            <h2>Enviar a</h2>
+            <p className="text-sm text-slate-400">Marca uno o varios contactos de Telegram.</p>
+            {contactsLoading ? <p className="text-sm text-slate-400">Cargando contactos…</p> : contacts.length === 0 ? (
+              <p className="text-sm text-slate-400">Aún no tienes contactos. <Link to="/ajustes" className="font-semibold text-brand-400">Crear contacto</Link></p>
+            ) : contacts.map((contact) => (
+              <label key={contact.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 p-3 text-sm text-slate-100">
+                <input
+                  type="checkbox"
+                  checked={recipientIds.includes(contact.id)}
+                  onChange={() => toggleRecipient(contact.id)}
+                  className="h-4 w-4"
+                />
+                <span className="min-w-0"><strong className="block">{contact.name}</strong><small className="block truncate text-slate-400">Telegram · {contact.contact}</small></span>
+              </label>
+            ))}
+          </div>
         </section>
 
         <fieldset className="invite-schedule">
@@ -215,7 +216,7 @@ export function StartProtocol() {
         )}
 
         {error && <p role="alert" className="invite-error">{error}</p>}
-        {isScheduled && <p className="invite-note">La programación queda en memoria durante esta sesión. El envío automático se conectará más adelante.</p>}
+        {isScheduled && <p className="invite-note">La programación ya queda guardada. La cola automática de Telegram se conectará en el siguiente paso.</p>}
         <button type="submit" disabled={sending} className="invite-cta">
           <span aria-hidden="true">➤</span>
           {sending ? 'Preparando invitación…' : isScheduled ? 'Programar invitación' : 'Mandar invitación'}
